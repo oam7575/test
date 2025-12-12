@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>SSH Hardening Guides</title>
+    <meta http-equiv="content-type" content="text/html; charset=iso-8859-1" />
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="icon" type="image/png" href="/favicon.ico">
+    <link rel="stylesheet" type="text/css" href="main.css" />
+    <script type="text/javascript" src="hardening_guides.js"></script>
+  </head>
+  <body>
+    <div id="content">
+      <div id="header">
+	<div id="logo">
+	  <a href="https://www.positronsecurity.com/"><img class="logo" src="positron-security.png"/></a>
+	</div>
+	<div id="nav"><a class="navlink" href="/">Home</a></div>
+	<br class="clear"/>
+<div id="ubuntu_24_04_lts">
+    <p><h2 class="os-title"><img src="ubuntu.png"/> Ubuntu 24.04 LTS Server <span class="last_modified">Last modified: September 1, 2025</span><span class="copy_button"><input class="copy_button" type="button" value="Copy commands to clipboard"/></span></h2></p>
+    <div class="change_log">
+      <p>Change Log:</p>
+      <ol>
+        <li>September 1, 2025: Removed commands directly editing sshd_config to make system updates easier for users.</li>
+        <li>October 1, 2024: Added RequiredRSASize directive to enforce a minimum of 3072-bit user and host-based authentication keys.</li>
+        <li>April 29, 2024: Initial revision.  In comparison to Ubuntu 22.04 LTS guide, the following changes were made: 1.) For key exchanges, diffie-hellman-group18-sha512 and diffie-hellman-group-exchange-sha256 were prioritized over diffie-hellman-group16-sha512 due to greater security strength; GSS algorithms were prioritized over their non-GSS equivalents in order to match the client guide, 2.) For ciphers, 256-bit AES ciphers were prioritized over 192 and 128-bit AES ciphers due to their increased resistence against quantum computing attacks (previously, weaker GCM ciphers had priority over CTR ciphers), 3.) The HostbasedAcceptedAlgorithms and PubkeyAcceptedAlgorithms settings are now the same as HostKeyAlgorithms setting, 4.) The hmac-sha2-512-etm@openssh.com MAC was increased in priority due to its increased resistence against quantum computing attacks, and 5.) The ED25519 host keys were given priority over RSA host keys due to their greater efficiency.</li>
+      </ol>
+    </div>
+    <p><u>Note</u>: all commands below are to be executed as the <i>root</i> user.<ol>
+    <li><h3>Re-generate the ED25519 and RSA keys</h3><span class="commands">rm /etc/ssh/ssh_host_*<br>
+ssh-keygen -t ed25519 -f /etc/ssh/ssh_host_ed25519_key -N ""<br>
+ssh-keygen -t rsa -b 4096 -f /etc/ssh/ssh_host_rsa_key -N ""
+</span></li>
+    <li><h3>Remove small Diffie-Hellman moduli</h3><span class="commands">awk '$5 >= 3071' /etc/ssh/moduli > /etc/ssh/moduli.safe<br>
+mv /etc/ssh/moduli.safe /etc/ssh/moduli</span></li>
+    <li><h3>Restrict supported key exchange, cipher, and MAC algorithms</h3><span class="commands">echo -e "# Restrict key exchange, cipher, and MAC algorithms, as per sshaudit.com\n# hardening guide.\nKexAlgorithms sntrup761x25519-sha512@openssh.com,gss-curve25519-sha256-,curve25519-sha256,curve25519-sha256@libssh.org,diffie-hellman-group18-sha512,diffie-hellman-group-exchange-sha256,gss-group16-sha512-,diffie-hellman-group16-sha512\n\nCiphers chacha20-poly1305@openssh.com,aes256-gcm@openssh.com,aes256-ctr,aes192-ctr,aes128-gcm@openssh.com,aes128-ctr\n\nMACs hmac-sha2-512-etm@openssh.com,hmac-sha2-256-etm@openssh.com,umac-128-etm@openssh.com\n\nRequiredRSASize 3072\n\nHostKeyAlgorithms sk-ssh-ed25519-cert-v01@openssh.com,ssh-ed25519-cert-v01@openssh.com,rsa-sha2-512-cert-v01@openssh.com,rsa-sha2-256-cert-v01@openssh.com,sk-ssh-ed25519@openssh.com,ssh-ed25519,rsa-sha2-512,rsa-sha2-256\n\nCASignatureAlgorithms sk-ssh-ed25519@openssh.com,ssh-ed25519,rsa-sha2-512,rsa-sha2-256\n\nGSSAPIKexAlgorithms gss-curve25519-sha256-,gss-group16-sha512-\n\nHostbasedAcceptedAlgorithms sk-ssh-ed25519-cert-v01@openssh.com,ssh-ed25519-cert-v01@openssh.com,rsa-sha2-512-cert-v01@openssh.com,rsa-sha2-256-cert-v01@openssh.com,sk-ssh-ed25519@openssh.com,ssh-ed25519,rsa-sha2-512,rsa-sha2-256\n\nPubkeyAcceptedAlgorithms sk-ssh-ed25519-cert-v01@openssh.com,ssh-ed25519-cert-v01@openssh.com,rsa-sha2-512-cert-v01@openssh.com,rsa-sha2-256-cert-v01@openssh.com,sk-ssh-ed25519@openssh.com,ssh-ed25519,rsa-sha2-512,rsa-sha2-256" > /etc/ssh/sshd_config.d/ssh-audit_hardening.conf</span></li>
+    <li><h3>Restart OpenSSH server</h3><span class="commands">service ssh restart</span></li>
+    <li><h3>Implement connection rate throttling</h3><p>Connection rate throttling is needed in order to protect against the <a href="https://www.positronsecurity.com/blog/2024-04-23-an-analysis-of-dheat-dos-against-ssh-in-cloud-environments/">DHEat denial-of-service attack</a>.  A complete and flexible solution is to use iptables to allow up to 10 connections every 10 seconds from any one source address.  An alternate solution is to set OpenSSH's PerSourceMaxStartups directive to 1 (note, however, that this can cause incomplete results during ssh-audit scans, as well as other client failures when bursts of connections are made).</p><span class="commands">iptables -I INPUT -p tcp --dport 22 -m state --state NEW -m recent --set<br>
+iptables -I INPUT -p tcp --dport 22 -m state --state NEW -m recent --update --seconds 10 --hitcount 10 -j DROP<br>
+ip6tables -I INPUT -p tcp --dport 22 -m state --state NEW -m recent --set<br>
+ip6tables -I INPUT -p tcp --dport 22 -m state --state NEW -m recent --update --seconds 10 --hitcount 10 -j DROP<br></span><p>Enable persistence of the iptables rules across server reboots:</p><span class="commands">DEBIAN_FRONTEND=noninteractive apt install -q -y netfilter-persistent iptables-persistent<br>service netfilter-persistent save</span></li>
+    </ol>
+    <br>
+    <u>Note</u>: <a href="https://bugzilla.mindrot.org/show_bug.cgi?id=2793">Because of a bug in OpenSSH</a>, 2048-bit DH moduli will still be used in some limited circumstances.  Only a maximum score of 95% is possible.</p>
+    </div>
+</div>
+</body>
+</html>
