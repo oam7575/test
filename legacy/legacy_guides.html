@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <title>SSH Hardening Guides</title>
+  <meta http-equiv="content-type" content="text/html; charset=iso-8859-1" />
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" type="image/png" href="../favicon.ico">
+  <link rel="stylesheet" type="text/css" href="../main.css" />
+  <script type="text/javascript" src="../hardening_guides.js"></script>
+</head>
+
+<body>
+  <div id="content">
+    <div id="header">
+      <div id="logo">
+        <a href="https://www.positronsecurity.com/"><img class="logo" src="logos/positron-security.png" /></a>
+      </div>
+      <div id="nav"><a class="navlink" href="https://www.ssh-audit.com/">Home</a></div>
+      <br class="clear" />
+    </div>
+    <p>
+    <h3>Legacy Guides:</h3>
+    </p>
+    <p>
+    <ol class="system_list">
+      <li><a href="#debian_10">Debian Buster (Debian 10)</a></li>
+      <li><a href="#openbsd_6_2">OpenBSD 6.2</a></li>
+      <li><a href="#pfsense_2_4">pfSense 2.4</a></li>
+      <li><a href="#rhel7">RedHat Enterprise Linux 7 / CentOS 7</a></li>
+      <li><a href="#rhel8">RedHat Enterprise Linux 8 / CentOS 8</a></li>
+      <li><a href="#ubuntu_14_04_lts">Ubuntu 14.04 LTS</a></li>
+      <li><a href="#ubuntu_16_04_lts">Ubuntu 16.04 LTS (Server)</a></li>
+      <li><a href="#ubuntu_16_04_linux_mint_18">Ubuntu 16.04 LTS / Linux Mint 18 (Client)</a></li>
+      <li><a href="#ubuntu_18_04_lts">Ubuntu 18.04 LTS</a></li>
+      <li><a href="#ubuntu_18_04_linux_mint_19">Ubuntu 18.04 LTS / Linux Mint 19 (Client)</a></li>
+      <li><a href="#ubuntu_core_16">Ubuntu Core 16</a></li>
+      <li><a href="#ubuntu_core_18">Ubuntu Core 18</a></li>
+    </ol>
+    </p>
+
+    <hr>
+
+    <div id="debian_10">
+      <p>
+      <h2 class="os-title">Debian Buster (Debian 10) <span class="last_modified">Last modified: September 17,
+          2021</span><span class="copy_button"><input class="copy_button" type="button"
+            value="Copy commands to clipboard" /></span></h2>
+      </p>
+      <p><u>Note</u>: all commands below are to be executed as the <i>root</i> user.
+      <ol>
+        <li>
+          <h3>Re-generate the RSA and ED25519 keys</h3><span class="commands">rm -f /etc/ssh/ssh_host_*<br>
+            ssh-keygen -t rsa -b 4096 -f /etc/ssh/ssh_host_rsa_key -N ""<br>
+            ssh-keygen -t ed25519 -f /etc/ssh/ssh_host_ed25519_key -N ""<br>
+          </span>
+        </li>
+        <li>
+          <h3>Enable the RSA and ED25519 keys</h3>Enable the RSA and ED25519 <i>HostKey</i> directives in the
+          <i>/etc/ssh/sshd_config</i> file:<br><br><span class="commands">sed -i 's/^\#HostKey
+            \/etc\/ssh\/ssh_host_\(rsa\|ed25519\)_key$/HostKey \/etc\/ssh\/ssh_host_\1_key/g'
+            /etc/ssh/sshd_config<br></span>
+        </li>
+        <li>
+          <h3>Remove small Diffie-Hellman moduli</h3><span class="commands">awk '$5 >= 3071' /etc/ssh/moduli >
+            /etc/ssh/moduli.safe<br>
+            mv -f /etc/ssh/moduli.safe /etc/ssh/moduli<br></span>
+        </li>
+        <li>
+          <h3>Restrict supported key exchange, cipher, and MAC algorithms</h3><span class="commands">echo -e "\n#
+            Restrict key exchange, cipher, and MAC algorithms, as per sshaudit.com\n# hardening guide.\nKexAlgorithms
+            curve25519-sha256,curve25519-sha256@libssh.org,diffie-hellman-group16-sha512,diffie-hellman-group18-sha512,diffie-hellman-group-exchange-sha256\nCiphers
+            chacha20-poly1305@openssh.com,aes256-gcm@openssh.com,aes128-gcm@openssh.com,aes256-ctr,aes192-ctr,aes128-ctr\nMACs
+            hmac-sha2-256-etm@openssh.com,hmac-sha2-512-etm@openssh.com,umac-128-etm@openssh.com\nHostKeyAlgorithms
+            ssh-ed25519,ssh-ed25519-cert-v01@openssh.com,rsa-sha2-256,rsa-sha2-512,rsa-sha2-256-cert-v01@openssh.com,rsa-sha2-512-cert-v01@openssh.com"
+            >> /etc/ssh/sshd_config<br></span>
+        </li>
+        <li>
+          <h3>Restart OpenSSH server</h3><span class="commands">service ssh restart</span>
+        </li>
+      </ol>
+      </p>
+    </div>
+
+    <hr>
+
+
+    <hr>
+
+    <div id="pfsense_2_4">
+      <p>
+      <h2 class="os-title"><img src="../logos/pfsense.png" /> pfSense 2.4 <span class="last_modified">Last modified:
+          October 17,
+          2017</span><span class="copy_button"><input class="copy_button" type="button"
+            value="Copy commands to clipboard" /></span></h2>
+      </p>
+      <p><u>Note</u>: all commands below are to be executed as the <i>root</i> user.
+      <ol>
+        <li>
+          <h3>Re-generate the RSA and ED25519 keys</h3><span class="commands">rm /etc/ssh/ssh_host_*<br>
+            ssh-keygen -t rsa -b 4096 -f /etc/ssh/ssh_host_rsa_key -N ""<br>
+            ssh-keygen -t ed25519 -f /etc/ssh/ssh_host_ed25519_key -N ""
+          </span>
+        </li>
+        <li>
+          <h3>Remove small Diffie-Hellman moduli</h3><span class="commands">awk '$5 >= 3071' /etc/ssh/moduli >
+            /etc/ssh/moduli.safe<br>
+            mv -f /etc/ssh/moduli.safe /etc/ssh/moduli</span>
+        </li>
+        <li>
+          <h3>Restrict supported key exchange, cipher, and MAC algorithms</h3><span class="commands">sed -i.bak 's/^MACs
+            \(.*\)$/\#MACs \1/g' /etc/ssh/sshd_config && rm /etc/ssh/sshd_config.bak<br>
+            echo "" | echo "MACs hmac-sha2-512-etm@openssh.com,hmac-sha2-256-etm@openssh.com,umac-128-etm@openssh.com"
+            >> /etc/ssh/sshd_config</span>
+        </li>
+        <li>
+          <h3>Restart OpenSSH server</h3><span class="commands">service sshd onerestart</span>
+        </li>
+      </ol>
+      <br>
+      <u>Note</u>: <a href="https://bugzilla.mindrot.org/show_bug.cgi?id=2793">Because of a bug in OpenSSH</a>, 2048-bit
+      DH moduli will still be used in some limited circumstances. Only a maximum score of 95% is possible.</p>
+    </div>
+
+    <hr>
+
+    <div id="openbsd_6_2">
+      <p>
+      <h2 class="os-title"><img src="../logos/openbsd.png" /> OpenBSD 6.2 Server <span class="last_modified">Last
+          modified:
+          October 20, 2020</span><span class="copy_button"><input class="copy_button" type="button"
+            value="Copy commands to clipboard" /></span></h2>
+      </p>
+      <p><u>Note</u>: all commands below are to be executed as the <i>root</i> user.
+      <ol>
+        <li>
+          <h3>Re-generate the RSA and ED25519 keys</h3><span class="commands">rm /etc/ssh/ssh_host_*<br>
+            ssh-keygen -t rsa -b 4096 -f /etc/ssh/ssh_host_rsa_key -N ""<br>
+            ssh-keygen -t ed25519 -f /etc/ssh/ssh_host_ed25519_key -N ""
+          </span>
+        </li>
+        <li>
+          <h3>Create custom Diffie-Hellman groups</h3><span class="commands">ssh-keygen -G /etc/ssh/moduli -b
+            3072</span><br><br><u>Note:</u> This will likely take some time to complete.
+        </li>
+        <li>
+          <h3>Disable the DSA and ECDSA host keys</h3><span class="commands">echo -e "\n# Restrict host keys to ED25519
+            and RSA only.\nHostKeyAlgorithms ssh-ed25519\n" >> /etc/ssh/sshd_config</span>
+        </li>
+        <li>
+          <h3>Restrict supported key exchange, cipher, and MAC algorithms</h3><span class="commands">echo -e "# Restrict
+            key exchange, cipher, and MAC algorithms, as per sshaudit.com\n# hardening guide.\nKexAlgorithms
+            curve25519-sha256,curve25519-sha256@libssh.org,diffie-hellman-group16-sha512,diffie-hellman-group18-sha512,diffie-hellman-group-exchange-sha256\nCiphers
+            chacha20-poly1305@openssh.com,aes256-gcm@openssh.com,aes128-gcm@openssh.com,aes256-ctr,aes192-ctr,aes128-ctr\nMACs
+            hmac-sha2-256-etm@openssh.com,hmac-sha2-512-etm@openssh.com,umac-128-etm@openssh.com" >>
+            /etc/ssh/sshd_config</span>
+        </li>
+        <li>
+          <h3>Restart OpenSSH server</h3><span class="commands">kill -HUP `cat /var/run/sshd.pid`</span>
+        </li>
+      </ol>
+      <br>
+      <u>Note</u>: <a href="https://bugzilla.mindrot.org/show_bug.cgi?id=2793">Because of a bug in OpenSSH</a>, 2048-bit
+      DH moduli will still be used in some limited circumstances. Only a maximum score of 95% is possible.</p>
+    </div>
+
+    <hr>
+
+    <div id="rhel8">
+      <p>
+      <h2 class="os-title">RedHat Enterprise Linux 8 Server / CentOS 8 Server <span class="last_modified">Last modified:
+          October 20, 2020</span><span class="copy_button"><input class="copy_button" type="button"
+            value="Copy commands to clipboard" /></span></h2>
+      </p>
+      <p><u>Note</u>: all commands below are to be executed as the <i>root</i> user.
+      <ol>
+        <li>
+          <h3>Re-generate the RSA and ED25519 keys</h3><span class="commands">rm -f /etc/ssh/ssh_host_*<br>
+            ssh-keygen -t rsa -b 4096 -f /etc/ssh/ssh_host_rsa_key -N ""<br>
+            ssh-keygen -t ed25519 -f /etc/ssh/ssh_host_ed25519_key -N ""<br>
+            chgrp ssh_keys /etc/ssh/ssh_host_ed25519_key /etc/ssh/ssh_host_rsa_key<br>
+            chmod g+r /etc/ssh/ssh_host_ed25519_key /etc/ssh/ssh_host_rsa_key
+          </span>
+        </li>
+        <li>
+          <h3>Remove small Diffie-Hellman moduli</h3><span class="commands">awk '$5 >= 3071' /etc/ssh/moduli >
+            /etc/ssh/moduli.safe<br>
+            mv -f /etc/ssh/moduli.safe /etc/ssh/moduli</span>
+        </li>
+        <li>
+          <h3>Disable ECDSA host key</h3>Comment out the ECDSA <i>HostKey</i> directive in the
+          <i>/etc/ssh/sshd_config</i> file:<br><br><span class="commands">sed -i 's/^HostKey
+            \/etc\/ssh\/ssh_host_ecdsa_key$/\#HostKey \/etc\/ssh\/ssh_host_ecdsa_key/g' /etc/ssh/sshd_config</span>
+        </li>
+        <li>
+          <h3>Restrict supported key exchange, cipher, and MAC algorithms</h3><span class="commands">cp
+            /etc/crypto-policies/back-ends/opensshserver.config
+            /etc/crypto-policies/back-ends/opensshserver.config.orig<br>
+            echo -e
+            "CRYPTO_POLICY='-oCiphers=chacha20-poly1305@openssh.com,aes256-gcm@openssh.com,aes128-gcm@openssh.com,aes256-ctr,aes192-ctr,aes128-ctr
+            -oMACs=hmac-sha2-256-etm@openssh.com,hmac-sha2-512-etm@openssh.com,umac-128-etm@openssh.com
+            -oGSSAPIKexAlgorithms=gss-curve25519-sha256-
+            -oKexAlgorithms=curve25519-sha256,curve25519-sha256@libssh.org,diffie-hellman-group16-sha512,diffie-hellman-group18-sha512,diffie-hellman-group-exchange-sha256
+            -oHostKeyAlgorithms=ssh-ed25519,ssh-ed25519-cert-v01@openssh.com,rsa-sha2-256,rsa-sha2-512
+            -oPubkeyAcceptedKeyTypes=ssh-ed25519,ssh-ed25519-cert-v01@openssh.com,rsa-sha2-256,rsa-sha2-512'" >
+            /etc/crypto-policies/back-ends/opensshserver.config<br>
+          </span>
+        </li>
+        <li>
+          <h3>Restart OpenSSH server</h3><span class="commands">systemctl restart sshd.service</span>
+        </li>
+      </ol>
+      </p>
+    </div>
+
+    <hr>
+
+    <div id="rhel7">
+      <p>
+      <h2 class="os-title">RedHat Enterprise Linux 7 Server / CentOS 7 Server <span class="last_modified">Last modified:
+          February 18, 2024</span><span class="copy_button"><input class="copy_button" type="button"
+            value="Copy commands to clipboard" /></span></h2>
+      </p>
+      <p><u>Note</u>: all commands below are to be executed as the <i>root</i> user.
+      <ol>
+        <li>
+          <h3>Disable automatic re-generation of RSA & ECDSA keys</h3><span class="commands">mkdir -p
+            /etc/systemd/system/sshd-keygen.service.d<br>
+            cat << EOF> /etc/systemd/system/sshd-keygen.service.d/ssh-audit.conf<br>
+              [Unit]<br>
+              ConditionFileNotEmpty=<br>
+              ConditionFileNotEmpty=!/etc/ssh/ssh_host_ed25519_key<br>
+              EOF<br>
+              systemctl daemon-reload</span>
+        <li>
+          <h3>Re-generate the ED25519 key</h3><span class="commands">rm -f /etc/ssh/ssh_host_*<br>
+            ssh-keygen -t ed25519 -f /etc/ssh/ssh_host_ed25519_key -N ""<br>
+            chgrp ssh_keys /etc/ssh/ssh_host_ed25519_key<br>
+            chmod g+r /etc/ssh/ssh_host_ed25519_key
+          </span>
+        </li>
+        <li>
+          <h3>Remove small Diffie-Hellman moduli</h3><span class="commands">awk '$5 >= 3071' /etc/ssh/moduli >
+            /etc/ssh/moduli.safe<br>
+            mv -f /etc/ssh/moduli.safe /etc/ssh/moduli</span>
+        </li>
+        <li>
+          <h3>Disable the RSA, DSA, and ECDSA host keys</h3>Comment out the RSA, DSA, and ECDSA <i>HostKey</i>
+          directives in the <i>/etc/ssh/sshd_config</i> file:<br><br><span class="commands">sed -i 's/^HostKey
+            \/etc\/ssh\/ssh_host_\(rsa\|dsa\|ecdsa\)_key$/\#HostKey \/etc\/ssh\/ssh_host_\1_key/g'
+            /etc/ssh/sshd_config</span>
+        </li>
+        <li>
+          <h3>Restrict supported key exchange, cipher, and MAC algorithms</h3><span class="commands">echo -e "\n#
+            Restrict key exchange, cipher, and MAC algorithms, as per sshaudit.com\n# hardening guide.\nKexAlgorithms
+            curve25519-sha256,curve25519-sha256@libssh.org,diffie-hellman-group18-sha512,diffie-hellman-group16-sha512,diffie-hellman-group-exchange-sha256\nCiphers
+            chacha20-poly1305@openssh.com,aes256-gcm@openssh.com,aes128-gcm@openssh.com,aes256-ctr,aes192-ctr,aes128-ctr\nMACs
+            hmac-sha2-256-etm@openssh.com,hmac-sha2-512-etm@openssh.com,umac-128-etm@openssh.com" >>
+            /etc/ssh/sshd_config</span>
+        </li>
+        <li>
+          <h3>Restart OpenSSH server</h3><span class="commands">systemctl restart sshd.service</span>
+        </li>
+      </ol>
+      </p>
+    </div>
+
+    <hr>
+
+    <div id="ubuntu_18_04_lts">
+      <p>
+      <h2 class="os-title"><img src="../logos/ubuntu.png" /> Ubuntu 18.04 LTS Server <span class="last_modified">Last
+          modified: February 8, 2020</span><span class="copy_button"><input class="copy_button" type="button"
+            value="Copy commands to clipboard" /></span></h2>
+      </p>
+      <p><u>Note</u>: all commands below are to be executed as the <i>root</i> user.
+      <ol>
+        <li>
+          <h3>Re-generate the RSA and ED25519 keys</h3><span class="commands">rm /etc/ssh/ssh_host_*<br>
+            ssh-keygen -t rsa -b 4096 -f /etc/ssh/ssh_host_rsa_key -N ""<br>
+            ssh-keygen -t ed25519 -f /etc/ssh/ssh_host_ed25519_key -N ""
+          </span>
+        </li>
+        <li>
+          <h3>Remove small Diffie-Hellman moduli</h3><span class="commands">awk '$5 >= 3071' /etc/ssh/moduli >
+            /etc/ssh/moduli.safe<br>
+            mv /etc/ssh/moduli.safe /etc/ssh/moduli</span>
+        </li>
+        <li>
+          <h3>Disable the DSA and ECDSA host keys</h3>Comment out the DSA and ECDSA <i>HostKey</i> directives in the
+          <i>/etc/ssh/sshd_config</i> file:<br><br><span class="commands">sed -i 's/^HostKey
+            \/etc\/ssh\/ssh_host_\(dsa\|ecdsa\)_key$/\#HostKey \/etc\/ssh\/ssh_host_\1_key/g'
+            /etc/ssh/sshd_config</span>
+        </li>
+        <li>
+          <h3>Restrict supported key exchange, cipher, and MAC algorithms</h3><span class="commands">echo -e "\n#
+            Restrict key exchange, cipher, and MAC algorithms, as per sshaudit.com\n# hardening guide.\nKexAlgorithms
+            curve25519-sha256,curve25519-sha256@libssh.org,diffie-hellman-group16-sha512,diffie-hellman-group18-sha512,diffie-hellman-group-exchange-sha256\nCiphers
+            chacha20-poly1305@openssh.com,aes256-gcm@openssh.com,aes128-gcm@openssh.com,aes256-ctr,aes192-ctr,aes128-ctr\nMACs
+            hmac-sha2-256-etm@openssh.com,hmac-sha2-512-etm@openssh.com,umac-128-etm@openssh.com\nHostKeyAlgorithms
+            ssh-ed25519,ssh-ed25519-cert-v01@openssh.com" >> /etc/ssh/sshd_config</span>
+        </li>
+        <li>
+          <h3>Restart OpenSSH server</h3><span class="commands">service ssh restart</span>
+        </li>
+      </ol>
+      <br>
+      <u>Note</u>: <a href="https://bugzilla.mindrot.org/show_bug.cgi?id=2793">Because of a bug in OpenSSH</a>, 2048-bit
+      DH moduli will still be used in some limited circumstances. Only a maximum score of 95% is possible.</p>
+    </div>
+
+    <hr>
+
+    <div id="ubuntu_16_04_lts">
+      <p>
+      <h2 class="os-title"><img src="../logos/ubuntu.png" /> Ubuntu 16.04 LTS Server <span class="last_modified">Last
+          modified: July 6, 2020</span><span class="copy_button"><input class="copy_button" type="button"
+            value="Copy commands to clipboard" /></span></h2>
+      </p>
+      <p><u>Note</u>: all commands below are to be executed as the <i>root</i> user.
+      <ol>
+        <li>
+          <h3>Re-generate ED25519 key</h3><span class="commands">rm /etc/ssh/ssh_host_*<br>
+            ssh-keygen -t ed25519 -f /etc/ssh/ssh_host_ed25519_key -N ""
+          </span>
+        </li>
+        <li>
+          <h3>Remove small Diffie-Hellman moduli</h3><span class="commands">awk '$5 >= 3071' /etc/ssh/moduli >
+            /etc/ssh/moduli.safe<br>
+            mv /etc/ssh/moduli.safe /etc/ssh/moduli</span>
+        </li>
+        <li>
+          <h3>Disable the RSA, DSA, and ECDSA host keys</h3>Comment out the RSA, DSA and ECDSA <i>HostKey</i> directives
+          in the <i>/etc/ssh/sshd_config</i> file:<br><br><span class="commands">sed -i 's/^HostKey
+            \/etc\/ssh\/ssh_host_\(rsa\|dsa\|ecdsa\)_key$/\#HostKey \/etc\/ssh\/ssh_host_\1_key/g'
+            /etc/ssh/sshd_config</span>
+        </li>
+        <li>
+          <h3>Restrict supported key exchange, cipher, and MAC algorithms</h3><span class="commands">echo -e "\n#
+            Restrict key exchange, cipher, and MAC algorithms, as per sshaudit.com\n# hardening guide.\nKexAlgorithms
+            curve25519-sha256@libssh.org,diffie-hellman-group-exchange-sha256\nCiphers
+            chacha20-poly1305@openssh.com,aes256-gcm@openssh.com,aes128-gcm@openssh.com,aes256-ctr,aes192-ctr,aes128-ctr\nMACs
+            hmac-sha2-256-etm@openssh.com,hmac-sha2-512-etm@openssh.com,umac-128-etm@openssh.com" >>
+            /etc/ssh/sshd_config</span>
+        </li>
+        <li>
+          <h3>Restart OpenSSH server</h3><span class="commands">service ssh restart</span>
+        </li>
+      </ol>
+      <br>
+      <u>Note</u>: <a href="https://bugzilla.mindrot.org/show_bug.cgi?id=2793">Because of a bug in OpenSSH</a>, 2048-bit
+      DH moduli will still be used in some limited circumstances. Only a maximum score of 95% is possible.</p>
+    </div>
+
+    <hr>
+
+    <div id="ubuntu_14_04_lts">
+      <p>
+      <h2 class="os-title"><img src="../logos/ubuntu.png" /> Ubuntu 14.04 LTS Server <span class="last_modified">Last
+          modified: October 17, 2017</span><span class="copy_button"><input class="copy_button" type="button"
+            value="Copy commands to clipboard" /></span></h2>
+      </p>
+      <p><u>Note</u>: all commands below are to be executed as the <i>root</i> user.
+      <ol>
+        <li>
+          <h3>Re-generate the RSA and ED25519 keys</h3><span class="commands">rm /etc/ssh/ssh_host_*<br>
+            ssh-keygen -t rsa -b 4096 -f /etc/ssh/ssh_host_rsa_key -N ""<br>
+            ssh-keygen -t ed25519 -f /etc/ssh/ssh_host_ed25519_key -N ""
+          </span>
+        </li>
+        <li>
+          <h3>Remove small Diffie-Hellman moduli</h3><span class="commands">awk '$5 >= 3071' /etc/ssh/moduli >
+            /etc/ssh/moduli.safe<br>
+            mv /etc/ssh/moduli.safe /etc/ssh/moduli</span>
+        </li>
+        <li>
+          <h3>Disable the DSA and ECDSA host keys</h3>Comment out the DSA and ECDSA <i>HostKey</i> directives in the
+          <i>/etc/ssh/sshd_config</i> file:<br><br><span class="commands">sed -i 's/^HostKey
+            \/etc\/ssh\/ssh_host_\(dsa\|ecdsa\)_key$/\#HostKey \/etc\/ssh\/ssh_host_\1_key/g'
+            /etc/ssh/sshd_config</span>
+        </li>
+        <li>
+          <h3>Restrict supported key exchange, cipher, and MAC algorithms</h3><span class="commands">echo -e "\n#
+            Restrict key exchange, cipher, and MAC algorithms, as per sshaudit.com\n# hardening guide.\nKexAlgorithms
+            curve25519-sha256@libssh.org,diffie-hellman-group-exchange-sha256\nCiphers
+            chacha20-poly1305@openssh.com,aes256-gcm@openssh.com,aes128-gcm@openssh.com,aes256-ctr,aes192-ctr,aes128-ctr\nMACs
+            hmac-sha2-256-etm@openssh.com,hmac-sha2-512-etm@openssh.com,umac-128-etm@openssh.com" >>
+            /etc/ssh/sshd_config</span>
+        </li>
+        <li>
+          <h3>Restart OpenSSH server</h3><span class="commands">service ssh restart</span>
+        </li>
+      </ol>
+      <br>
+      <u>Note</u>: <a href="https://bugzilla.mindrot.org/show_bug.cgi?id=2793">Because of a bug in OpenSSH</a>, 2048-bit
+      DH moduli will still be used in some limited circumstances. Only a maximum score of 95% is possible.</p>
+    </div>
+
+    <hr>
+
+    <div id="ubuntu_core_18">
+      <p>
+      <h2 class="os-title"><img src="../logos/ubuntu.png" /> Ubuntu Core 18 Server <span class="last_modified">Last
+          modified: October 6, 2019</span><span class="copy_button"><input class="copy_button" type="button"
+            value="Copy commands to clipboard" /></span></h2>
+      </p>
+      <p><u>Note</u>: all commands below are to be executed as the <i>root</i> user.
+      <ol>
+        <li>
+          <h3>Re-generate the RSA and ED25519 keys</h3>
+          <u>Note</u>: It is highly recommended that you run the <i>ssh-keygen</i> commands below on another host. Some
+          IoT devices do not have good entropy sources to generate sufficient keys with!<br><br>
+          <span class="commands">ssh-keygen -t rsa -b 4096 -f ssh_host_rsa_key -N ""<br>
+            ssh-keygen -t ed25519 -f ssh_host_ed25519_key -N ""
+          </span>
+          <br><br>Be sure to upload the following 4 files to the target device's <i>/etc/ssh</i> directory:<ul>
+            <li>ssh_host_ed25519_key</li>
+            <li>ssh_host_ed25519_key.pub</li>
+            <li>ssh_host_rsa_key</li>
+            <li>ssh_host_rsa_key.pub</li>
+          </ul>
+        </li>
+        <li>
+          <h3>Remove small Diffie-Hellman moduli</h3><span class="commands">awk '$5 >= 3071' /etc/ssh/moduli >
+            /etc/ssh/moduli.safe<br>
+            mv /etc/ssh/moduli.safe /etc/ssh/moduli</span>
+        </li>
+        <li>
+          <h3>Restrict supported key exchange, cipher, and MAC algorithms</h3><span class="commands">echo -e "\n# Only
+            enable RSA and ED25519 host keys.\nHostKey /etc/ssh/ssh_host_rsa_key\nHostKey
+            /etc/ssh/ssh_host_ed25519_key\n\n# Restrict key exchange, cipher, and MAC algorithms, as per sshaudit.com\n#
+            hardening guide.\nKexAlgorithms
+            curve25519-sha256,curve25519-sha256@libssh.org,diffie-hellman-group16-sha512,diffie-hellman-group18-sha512,diffie-hellman-group-exchange-sha256\nCiphers
+            chacha20-poly1305@openssh.com,aes256-gcm@openssh.com,aes128-gcm@openssh.com,aes256-ctr,aes192-ctr,aes128-ctr\nMACs
+            hmac-sha2-256-etm@openssh.com,hmac-sha2-512-etm@openssh.com,umac-128-etm@openssh.com" >>
+            /etc/ssh/sshd_config</span>
+        </li>
+        <li>
+          <h3>Restart OpenSSH server</h3><span class="commands">service ssh reload</span>
+        </li>
+      </ol>
+      <br>
+      <u>Note</u>: <a href="https://bugzilla.mindrot.org/show_bug.cgi?id=2793">Because of a bug in OpenSSH</a>, 2048-bit
+      DH moduli will still be used in some limited circumstances. Only a maximum score of 95% is possible.</p>
+    </div>
+
+    <hr>
+
+    <div id="ubuntu_core_16">
+      <p>
+      <h2 class="os-title"><img src="../logos/ubuntu.png" /> Ubuntu Core 16 Server <span class="last_modified">Last
+          modified: October 17, 2017</span><span class="copy_button"><input class="copy_button" type="button"
+            value="Copy commands to clipboard" /></span></h2>
+      </p>
+      <p><u>Note</u>: all commands below are to be executed as the <i>root</i> user.
+      <ol>
+        <li>
+          <h3>Re-generate the RSA and ED25519 keys</h3>
+          <u>Note</u>: It is highly recommended that you run the <i>ssh-keygen</i> commands below on another host. Some
+          IoT devices do not have good entropy sources to generate sufficient keys with!<br><br>
+          <span class="commands">ssh-keygen -t rsa -b 4096 -f ssh_host_rsa_key -N ""<br>
+            ssh-keygen -t ed25519 -f ssh_host_ed25519_key -N ""
+          </span>
+          <br><br>Be sure to upload the following 4 files to the target device's <i>/etc/ssh</i> directory:<ul>
+            <li>ssh_host_ed25519_key</li>
+            <li>ssh_host_ed25519_key.pub</li>
+            <li>ssh_host_rsa_key</li>
+            <li>ssh_host_rsa_key.pub</li>
+          </ul>
+        </li>
+        <li>
+          <h3>Remove small Diffie-Hellman moduli</h3><span class="commands">awk '$5 >= 3071' /etc/ssh/moduli >
+            /etc/ssh/moduli.safe<br>
+            mv /etc/ssh/moduli.safe /etc/ssh/moduli</span>
+        </li>
+        <li>
+          <h3>Restrict supported key exchange, cipher, and MAC algorithms</h3><span class="commands">sed -i 's/^MACs
+            \(.*\)$/\#MACs \1/g' /etc/ssh/sshd_config<br>
+            echo -e "\n# Restrict MAC algorithms, as per sshaudit.com hardening guide.\nMACs
+            hmac-sha2-512-etm@openssh.com,hmac-sha2-256-etm@openssh.com,umac-128-etm@openssh.com" >>
+            /etc/ssh/sshd_config</span>
+        </li>
+        <li>
+          <h3>Restart OpenSSH server</h3><span class="commands">service ssh reload</span>
+        </li>
+      </ol>
+      <br>
+      <u>Note</u>: <a href="https://bugzilla.mindrot.org/show_bug.cgi?id=2793">Because of a bug in OpenSSH</a>, 2048-bit
+      DH moduli will still be used in some limited circumstances. Only a maximum score of 95% is possible.</p>
+    </div>
+    <hr>
+    <div id="ubuntu_16_04_linux_mint_18">
+      <p>
+      <h2 class="os-title"><img src="../logos/ubuntu.png" /> Ubuntu 16.04 LTS Client / <img src="linux_mint.png" />
+        Linux Mint 18
+        Client<span class="last_modified">Last modified: October 20, 2020</span><span class="copy_button"><input
+            class="copy_button" type="button" value="Copy commands to clipboard" /></span></h2>
+      </p>
+      <ul>
+        <li>
+          <h3>Run the following in a terminal to harden the SSH client for the local user:</h3><span
+            class="commands">mkdir -p -m 0700 ~/.ssh; echo -e "\nHost *\n Ciphers
+            chacha20-poly1305@openssh.com,aes256-gcm@openssh.com,aes128-gcm@openssh.com,aes256-ctr,aes192-ctr,aes128-ctr\n
+            KexAlgorithms curve25519-sha256@libssh.org,diffie-hellman-group-exchange-sha256\n MACs
+            hmac-sha2-256-etm@openssh.com,hmac-sha2-512-etm@openssh.com,umac-128-etm@openssh.com\n HostKeyAlgorithms
+            ssh-ed25519,ssh-ed25519-cert-v01@openssh.com,rsa-sha2-256,rsa-sha2-512\n" >> ~/.ssh/config</span>
+        </li>
+      </ul>
+    </div>
+
+    <hr>
+
+    <div id="ubuntu_18_04_linux_mint_19">
+      <p>
+      <h2 class="os-title"><img src="../logos/ubuntu.png" /> Ubuntu 18.04 LTS Client / <img src="linux_mint.png" />
+        Linux Mint 19
+        Client<span class="last_modified">Last modified: October 20, 2020</span><span class="copy_button"><input
+            class="copy_button" type="button" value="Copy commands to clipboard" /></span></h2>
+      </p>
+      <ul>
+        <li>
+          <h3>Run the following in a terminal to harden the SSH client for the local user:</h3><span
+            class="commands">mkdir -p -m 0700 ~/.ssh; echo -e "\nHost *\n Ciphers
+            chacha20-poly1305@openssh.com,aes256-gcm@openssh.com,aes128-gcm@openssh.com,aes256-ctr,aes192-ctr,aes128-ctr\n
+            KexAlgorithms
+            curve25519-sha256,curve25519-sha256@libssh.org,diffie-hellman-group16-sha512,diffie-hellman-group18-sha512,diffie-hellman-group-exchange-sha256\n
+            MACs hmac-sha2-256-etm@openssh.com,hmac-sha2-512-etm@openssh.com,umac-128-etm@openssh.com\n
+            HostKeyAlgorithms ssh-ed25519,ssh-ed25519-cert-v01@openssh.com,rsa-sha2-256,rsa-sha2-512\n" >>
+            ~/.ssh/config</span>
+        </li>
+      </ul>
+    </div>
+
+    <hr>
+  </div>
+</body>
+
+</html>
